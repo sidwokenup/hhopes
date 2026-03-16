@@ -1,26 +1,4 @@
 <?php
-// Debug block - REMOVE AFTER TESTING
-if (isset($_GET['test_connection'])) {
-    ini_set('display_errors', 1);
-    ini_set('display_startup_errors', 1);
-    error_reporting(E_ALL);
-    echo "<h1>Debug Mode</h1>";
-    echo "<p>PHP is running.</p>";
-    
-    $ch = curl_init('https://rbl.palladium.expert');
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    $result = curl_exec($ch);
-    
-    if (curl_errno($ch)) {
-        echo "<p style='color:red'>Curl Error: " . curl_error($ch) . "</p>";
-    } else {
-        echo "<p style='color:green'>Connection to Palladium successful.</p>";
-        echo "<p>Response length: " . strlen($result) . "</p>";
-    }
-    curl_close($ch);
-    exit;
-}
 
 $isTarget = (new RequestHandlerClient())->run();
 
@@ -75,8 +53,13 @@ class RequestHandlerClient
             curl_setopt($curl, CURLOPT_TIMEOUT, 4);
             curl_setopt($curl, CURLOPT_TIMEOUT_MS, 4000);
             curl_setopt($curl, CURLOPT_FORBID_REUSE, true);
+            curl_setopt($curl, CURLOPT_USERAGENT, $_SERVER['HTTP_USER_AGENT'] ?? 'Mozilla/5.0'); // Pass user agent
 
             $result = curl_exec($curl);
+            
+            // Basic error logging for debugging (optional)
+            // if (!$result) { error_log("Palladium cURL Error: " . curl_error($curl)); }
+
             if ($result) {
 				$serverOut = json_decode(
 					$result,
