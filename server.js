@@ -2,11 +2,18 @@ const express = require('express');
 const nodemailer = require('nodemailer');
 const cors = require('cors');
 
+const path = require('path');
+
 const app = express();
 const port = 3000;
 
 app.use(cors());
 app.use(express.json());
+app.use(express.static(__dirname));
+
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'content.html'));
+});
 
 app.post('/send-email', async (req, res) => {
     const { name, email, service, message } = req.body;
@@ -48,6 +55,12 @@ app.post('/send-email', async (req, res) => {
     }
 });
 
-app.listen(port, () => {
-    console.log(`Server listening at http://localhost:${port}`);
-});
+// Export the app for Vercel
+module.exports = app;
+
+// Only start the server if running locally
+if (require.main === module) {
+    app.listen(port, () => {
+        console.log(`Server listening at http://localhost:${port}`);
+    });
+}
