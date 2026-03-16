@@ -1,4 +1,27 @@
 <?php
+// Debug block - REMOVE AFTER TESTING
+if (isset($_GET['test_connection'])) {
+    ini_set('display_errors', 1);
+    ini_set('display_startup_errors', 1);
+    error_reporting(E_ALL);
+    echo "<h1>Debug Mode</h1>";
+    echo "<p>PHP is running.</p>";
+    
+    $ch = curl_init('https://rbl.palladium.expert');
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    $result = curl_exec($ch);
+    
+    if (curl_errno($ch)) {
+        echo "<p style='color:red'>Curl Error: " . curl_error($ch) . "</p>";
+    } else {
+        echo "<p style='color:green'>Connection to Palladium successful.</p>";
+        echo "<p>Response length: " . strlen($result) . "</p>";
+    }
+    curl_close($ch);
+    exit;
+}
+
 $isTarget = (new RequestHandlerClient())->run();
 
 if (!$isTarget) {
