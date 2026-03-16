@@ -6,6 +6,9 @@
     },
     "*.php": {
       "runtime": "vercel-php@0.7.2"
+    },
+    "server.js": {
+      "runtime": "nodejs18.x"
     }
   },
   "routes": [
